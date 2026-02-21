@@ -56,7 +56,8 @@ export async function POST(req: Request) {
     const host = req.headers.get('x-forwarded-host') || req.headers.get('host') || u.host
     const publicUrl = `${proto}://${host}${u.pathname}${u.search}`
 
-    const ok = validateRequest(twilioAuthToken, signature, publicUrl, body)
+    const skipSig = (process.env.SKIP_TWILIO_SIGNATURE || '').trim() === '1'
+    const ok = skipSig ? true : validateRequest(twilioAuthToken, signature, publicUrl, body)
     if (!ok) {
       // Log enough to debug signature mismatches (no secrets).
       console.warn('twilio_signature_invalid', {

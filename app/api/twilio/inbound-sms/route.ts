@@ -57,12 +57,19 @@ export async function POST(req: Request) {
     const publicUrl = `${proto}://${host}${u.pathname}${u.search}`
 
     const skipSig = (process.env.SKIP_TWILIO_SIGNATURE || '').trim() === '1'
-    const ok = skipSig ? true : validateRequest(twilioAuthToken, signature, publicUrl, body)
+
+    // If provided, use a fixed webhook URL for signature validation.
+    // This avoids proxy/alias hostname mismatches in serverless environments.
+    const fixedUrl = (process.env.TWILIO_WEBHOOK_URL || '').trim()
+    const validateUrl = fixedUrl || publicUrl
+
+    const ok = skipSig ? true : validateRequest(twilioAuthToken, signature, validateUrl, body)
     if (!ok) {
       // Log enough to debug signature mismatches (no secrets).
       console.warn('twilio_signature_invalid', {
         reqUrl: req.url,
         publicUrl,
+        validateUrl,
         host: req.headers.get('host'),
         xfHost: req.headers.get('x-forwarded-host'),
         xfProto: req.headers.get('x-forwarded-proto'),

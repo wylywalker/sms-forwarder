@@ -48,11 +48,23 @@ export async function POST(req: Request) {
     // Validate Twilio signature (prevents random spam into Slack).
     // Requires your Vercel URL to be configured in Twilio exactly (including path).
     const signature = req.headers.get('x-twilio-signature') || ''
-    const url = req.url
 
-    const ok = validateRequest(twilioAuthToken, signature, url, body)
+    // IMPORTANT: Twilio signature validation depends on the *exact* URL Twilio requested.
+    // On Vercel, `req.url` may reflect an internal hostname. Reconstruct from forwarded headers.
+    const u = new URL(req.url)
+    const proto = req.headers.get('x-forwarded-proto') || u.protocol.replace(':', '') || 'https'
+    const host = req.headers.get('x-forwarded-host') || req.headers.get('host') || u.host
+    const publicUrl = `${proto}://${host}${u.pathname}${u.search}`
+
+    const ok = validateRequest(twilioAuthToken, signature, publicUrl, body)
     if (!ok) {
-      return NextResponse.json({ ok: false, error: 'Invalid Twilio signature' }, { status: 401 })
+      return NextResponse.json(
+        {
+          ok: false,
+          error: 'Invalid Twilio signature',
+        },
+        { status: 401 }
+      )
     }
 
     const extracted = firstUrl(text)

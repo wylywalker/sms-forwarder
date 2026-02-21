@@ -58,13 +58,19 @@ export async function POST(req: Request) {
 
     const ok = validateRequest(twilioAuthToken, signature, publicUrl, body)
     if (!ok) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: 'Invalid Twilio signature',
-        },
-        { status: 401 }
-      )
+      // Log enough to debug signature mismatches (no secrets).
+      console.warn('twilio_signature_invalid', {
+        reqUrl: req.url,
+        publicUrl,
+        host: req.headers.get('host'),
+        xfHost: req.headers.get('x-forwarded-host'),
+        xfProto: req.headers.get('x-forwarded-proto'),
+        hasSig: Boolean(signature),
+        sid,
+        from,
+        to,
+      })
+      return NextResponse.json({ ok: false, error: 'Invalid Twilio signature' }, { status: 401 })
     }
 
     const extracted = firstUrl(text)
